@@ -1,0 +1,1272 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.springblade.platform.qiyeshouye.mapper.QiYeTongJiMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="ResultMap" type="org.springblade.platform.qiyeshouye.entity.QiYeTongJi">
+    </resultMap>
+
+    <resultMap id="RYXResultMap" type="org.springblade.platform.qiyeshouye.entity.QiYeRiYunXingTongJi">
+    </resultMap>
+
+    <resultMap id="OffLineResultMap" type="org.springblade.platform.qiyeshouye.entity.QiYeOffLineTongJi">
+    </resultMap>
+
+    <resultMap id="InOutAreaResultMap" type="org.springblade.platform.qiyeshouye.entity.QiYeInOutAreaTongJi">
+    </resultMap>
+
+    <resultMap id="statementResultMap" type="org.springblade.platform.qiyeshouye.entity.StatementTongJi">
+    </resultMap>
+
+    <resultMap id="TrajectoryAnomaliesResultMap" type="org.springblade.platform.qiyeshouye.entity.TrajectoryAnomalies">
+    </resultMap>
+
+    <resultMap id="StopVehicleResultMap" type="org.springblade.platform.qiyeshouye.entity.StopVehicle">
+    </resultMap>
+
+    <resultMap id="TpvehdataResultMap" type="org.springblade.platform.qiyeshouye.entity.QiYeTpvehdataTongJi">
+    </resultMap>
+
+    <!-- 查询报警统计汇总列表 -->
+    <sql id="tableSql">
+        select
+            concat(#{beginTime},'至',#{endTime}) as date,
+            ROUND(b.baojingcishu/b.baojingcheliangshu,2) as danchebaojingbi,
+            b.*,
+            c.*
+        from(
+            select
+                cid,
+                company,
+                SUM(IFNULL(baojingcishu,0))+SUM(IFNULL(zhudongbaojingcishu,0)) as baojingcishu,
+				SUM(IFNULL(zhudongbaojingcishu,0)) as zhudongbaojingcishu,
+				SUM(IFNULL(baojingcishu,0)) as beidoubaojingcishu,
+                IFNULL(COUNT(cheliangpaizhao),0) as baojingcheliangshu,
+                IFNULL(SUM(chaosu),0) as chaosu,
+                IFNULL(SUM(pilao),0) as pilao,
+                IFNULL(SUM(yejian),0) as yejian,
+                IFNULL(SUM(buzaixian+budingwei),0) as yichang,
+                IFNULL(SUM(dadianhua),0) as dmsdadianhua,
+                IFNULL(SUM(chouyan),0) as dmschouyan,
+                IFNULL(SUM(fenshen),0) as dmsfenshen,
+                IFNULL(SUM(pilaoshipin),0) as dmspilao
+            from
+                baobiao_alarmvehdailyreport
+            where 1=1
+                and cid = #{deptId}
+                and date &gt;= #{beginTime}
+                and date &lt;= #{endTime}
+                and IFNULL(baojingcishu,0) &gt; 0
+            GROUP BY
+                cid,
+                company
+            )b
+        left join(
+            select
+                dept_id,
+                COUNT(cheliangpaizhao) as cheliangshu
+            from
+                anbiao_vehicle
+            where 1=1
+                and IFNULL(cheliangzhuangtai,0) = 0
+                and is_deleted = 0
+                and dept_id = #{deptId}
+            GROUP BY
+                dept_id
+            )c on c.dept_id = b.cid
+        where 1=1
+    </sql>
+
+    <sql id="orderSql">
+        <!-- 默认排序规则 -->
+        <if test="orderColumn == null or orderColumn == ''">
+            order by baojingcishu desc
+        </if>
+        <if test="orderColumn != null and orderColumn != ''">
+            order by ${orderColumn}
+        </if>
+        <if test="orderColumn != null and orderColumn != '' and order != 0">
+            desc
+        </if>
+        <if test="orderColumn != null and orderColumn != '' and order == 0">
+            asc
+        </if>
+    </sql>
+
+    <sql id="querySql">
+        <if test="shifouchuli != null and shifouchuli != '' ">
+            <if test="shifouchuli=='已处理'">
+                and chulizhuangtai = '已处理'
+            </if>
+            <if test="shifouchuli=='未处理'">
+                and ifnull(chulizhuangtai,'') = '未处理'
+            </if>
+        </if>
+
+        <if test="shifoushenshu != null and shifoushenshu != '' ">
+            <if test="shifoushenshu=='已申诉'">
+                and shensuzhuangtai = '已申诉'
+            </if>
+            <if test="shifoushenshu=='未申诉'">
+                and ifnull(shensuzhuangtai,'') = '未申诉'
+            </if>
+        </if>
+
+        <if test="cheliangpaizhao != null and cheliangpaizhao != ''">
+            and cheliangpaizhao = #{cheliangpaizhao}
+        </if>
+
+        <if test="deptName != null and deptName != ''">
+            and company like '%${deptName}%'
+        </if>
+
+    </sql>
+
+    <select timeout="600" id="selectGetBJTJ" resultMap="ResultMap"
+            parameterType="org.springblade.platform.qiyeshouye.page.QiYeTongJiPage">
+        <if test="size == 0">
+            select * from (
+            <include refid="tableSql"/>
+            )b
+            where 1=1
+            <include refid="querySql"/>
+            <include refid="orderSql"/>
+            limit ${total}
+        </if>
+        <if test="current != 0">
+            select * from (
+            <include refid="tableSql"/>
+            )b
+            where 1=1
+            <include refid="querySql"/>
+            <include refid="orderSql"/>
+            limit ${offsetNo},${size}
+        </if>
+    </select>
+
+    <select timeout="90" id="selectGetBJTJTotal"
+            parameterType="org.springblade.platform.qiyeshouye.page.QiYeTongJiPage"
+            resultType="int">
+        select COUNT(1) from (
+        <include refid="tableSql"/>
+        )d where 1 = 1
+        <include refid="querySql"/>
+    </select>
+
+
+    <!-- 查询车辆报警排名列表 -->
+    <sql id="tablePMSql">
+        select
+            concat(#{beginTime},'至',#{endTime}) as date,
+            b.*,
+            c.shiyongxingzhi
+        from(
+            select
+                cid,
+                company,
+                cheliangpaizhao,
+                chepaiyanse,
+                SUM(IFNULL(baojingcishu,0))+SUM(IFNULL(zhudongbaojingcishu,0)) as baojingcishu,
+                SUM(IFNULL(zhudongbaojingcishu,0)) as zhudongbaojingcishu,
+                SUM(IFNULL(baojingcishu,0)) as beidoubaojingcishu,
+                SUM(IFNULL(chaosu,0)) as chaosu,
+                SUM(IFNULL(pilao,0)) as pilao,
+                SUM(IFNULL(yejian,0)) as yejian,
+                SUM(IFNULL(buzaixian+budingwei,0)) as yichang,
+                SUM(IFNULL(dadianhua,0)) as dadianhua,
+                SUM(IFNULL(chouyan,0)) as chouyan,
+                SUM(IFNULL(fenshen,0)) as fenshen,
+                SUM(IFNULL(pilaoshipin,0)) as pilaoshipin
+            from
+                baobiao_alarmvehdailyreport
+            where 1=1
+                and cid = #{deptId}
+                and date &gt;= #{beginTime}
+                and date &lt;= #{endTime}
+                and IFNULL(baojingcishu,0) &gt; 0
+            GROUP BY
+                cid,
+                company,
+                cheliangpaizhao,
+                chepaiyanse
+            )b
+        inner join(
+            select
+                dept_id,
+                cheliangpaizhao,
+                chepaiyanse,
+                shiyongxingzhi
+            from
+                anbiao_vehicle
+            where IFNULL(cheliangzhuangtai,0) = 0
+                and is_deleted = 0
+                and dept_id = #{deptId}
+            GROUP BY
+                dept_id,
+                cheliangpaizhao,
+                chepaiyanse,
+                shiyongxingzhi
+            )c on c.dept_id = b.cid
+        where 1=1
+            and c.cheliangpaizhao = b.cheliangpaizhao
+            and c.chepaiyanse = b.chepaiyanse
+    </sql>
+
+    <sql id="orderPMSql">
+        <!-- 默认排序规则 -->
+        <if test="orderColumn == null or orderColumn == ''">
+            order by baojingcishu desc
+        </if>
+        <if test="orderColumn != null and orderColumn != ''">
+            order by ${orderColumn}
+        </if>
+        <if test="orderColumn != null and orderColumn != '' and order != 0">
+            desc
+        </if>
+        <if test="orderColumn != null and orderColumn != '' and order == 0">
+            asc
+        </if>
+    </sql>
+
+    <sql id="queryPMSql">
+        <if test="shifouchuli != null and shifouchuli != '' ">
+            <if test="shifouchuli=='已处理'">
+                and chulizhuangtai = '已处理'
+            </if>
+            <if test="shifouchuli=='未处理'">
+                and ifnull(chulizhuangtai,'') = '未处理'
+            </if>
+        </if>
+
+        <if test="shifoushenshu != null and shifoushenshu != '' ">
+            <if test="shifoushenshu=='已申诉'">
+                and shensuzhuangtai = '已申诉'
+            </if>
+            <if test="shifoushenshu=='未申诉'">
+                and ifnull(shensuzhuangtai,'') = '未申诉'
+            </if>
+        </if>
+
+        <if test="cheliangpaizhao != null and cheliangpaizhao != ''">
+            and cheliangpaizhao = #{cheliangpaizhao}
+        </if>
+
+        <if test="shiyongxingzhi != null and shiyongxingzhi != ''">
+            and shiyongxingzhi like '%${shiyongxingzhi}%'
+        </if>
+
+        <if test="deptName != null and deptName != ''">
+            and company like '%${deptName}%'
+        </if>
+
+    </sql>
+
+    <select timeout="600" id="selectBJPMTJ" resultMap="ResultMap"
+            parameterType="org.springblade.platform.qiyeshouye.page.QiYeTongJiPage">
+        <if test="size == 0">
+            select * from (
+            <include refid="tablePMSql"/>
+            )b
+            where 1=1
+            <include refid="queryPMSql"/>
+            <include refid="orderPMSql"/>
+            limit ${total}
+        </if>
+        <if test="current != 0">
+            select * from (
+            <include refid="tablePMSql"/>
+            )b
+            where 1=1
+            <include refid="queryPMSql"/>
+            <include refid="orderPMSql"/>
+            limit ${offsetNo},${size}
+        </if>
+    </select>
+
+    <select timeout="90" id="selectBJTJPMTotal"
+            parameterType="org.springblade.platform.qiyeshouye.page.QiYeTongJiPage"
+            resultType="int">
+        select COUNT(1) from (
+        <include refid="tablePMSql"/>
+        )d where 1 = 1
+        <include refid="queryPMSql"/>
+    </select>
+
+
+    <!-- 查询报警统计汇总列表 -->
+    <sql id="tableRYXSql">
+        <!--select
+            a.cid as deptId,
+            a.company,
+            concat(#{beginTime},'至',#{endTime}) as date,
+            a.vehicleCount,
+            a.onlineCount,
+            a.stopCount,
+            a.offlineCount,
+            case when IFNULL(a.onlineRate,0) = 0 then '0.00%'
+                else concat(ROUND(a.onlineRate*100,2),'%')
+            end as onlineRate,
+            a.locateCount,
+            case when IFNULL(a.locateRate,0) = 0 then '0.00%'
+                else concat(ROUND(a.locateRate*100,2),'%')
+            end as locateRate,
+            case when IFNULL(b.DriftPositionRate,0) = 0 then '0.00%'
+                else concat(ROUND(b.DriftPositionRate*10,2),'%')
+            end as DriftPositionRate,
+            case when IFNULL(b.IntactPositionRate,0) = 0 then '0.00%'
+                else concat(ROUND(b.IntactPositionRate*10,2),'%')
+            end as IntactPositionRate,
+            b.QualifiedPositionCount,
+            b.PositionCount,
+            case when IFNULL(b.PositionCount,0) = 0 or IFNULL(b.QualifiedPositionCount,0) = 0 then '0.00%'
+                else concat(ROUND((b.QualifiedPositionCount*1.0/b.PositionCount)*100,2),'%')
+            end as QualifiedPositionRate
+        from(
+            select
+                cid,
+                company,
+                vehicleCount,
+                onlineCount,
+                stopCount,
+                offlineCount,
+                onlineRate,
+                locateCount,
+                locateRate
+            from
+                baobiao_clientdailyreport
+            where 1=1
+                and cid = #{deptId}
+                and date &gt;= #{beginTime}
+                and date &lt;= #{endTime}
+            )a
+        left join(
+            select
+                veh.dept_id,
+                avg(sta.DriftPositionRate) as DriftPositionRate,
+                avg(sta.IntactPositionRate) as IntactPositionRate,
+                avg(sta.QualifiedPositionCount) as QualifiedPositionCount,
+                avg(sta.PositionCount) as PositionCount
+            from(
+                select
+                    dept_id,id
+                from
+                    anbiao_vehicle
+                where 1=1
+                    and is_deleted = 0
+                    and dept_id = #{deptId}
+                group by dept_id,id
+                ) veh
+            inner join(
+                select
+                    vehicleId,
+                    sum(DriftPositionRate) as DriftPositionRate,
+                    sum(IntactPositionRate) as IntactPositionRate,
+                    sum(QualifiedPositionCount) as QualifiedPositionCount,
+                    sum(PositionCount) as PositionCount
+                from
+                    statisticdetail
+                where 1=1
+                    and date &gt;= #{beginTime}
+                    and date &lt;= #{endTime}
+                GROUP BY
+                    VehicleId
+                )sta on sta.vehicleid = veh.id
+            where 1=1
+            group by veh.dept_id
+        )b on a.cid = b.dept_id-->
+
+        select
+            cid,
+            company,
+            date,
+            IFNULL(replace(ltrim(replace(vehiclecount,'0',' ')),' ','0'),0) as vehicleCount,
+            IFNULL(UpLineCount,0) as onlineCount,
+            IFNULL((vehiclecount-UpLineCount),0) as offlineCount,
+            case when IFNULL(vehiclecount,0) = 0 or IFNULL(UpLineCount,0) = 0 then '0.00%'
+                else concat(ROUND((UpLineCount*1.0/vehiclecount)*100,2),'%')
+            end as onlineRate,
+            IFNULL(locateVehicleCount,0) as locateCount,
+            case when IFNULL(vehiclecount,0) = 0 or IFNULL(locateVehicleCount,0) = 0 then '0.00%'
+                else concat(ROUND((locateVehicleCount*1.0/vehiclecount)*100,2),'%')
+            end as locaterate,
+            case when ifnull(DriftPositionRate,'') = '' then '100.00%'
+                else concat(ROUND(DriftPositionRate*100,2),'%')
+            end as DriftPositionRate,
+            case when ifnull(IntactPositionRate,'') = '' then '100.00%'
+                else concat(ROUND(IntactPositionRate,2),'%')
+            end as IntactPositionRate,
+            case when ifnull(QualifiedPositionRate,'') = '' then '100.00%'
+                else concat(ROUND(QualifiedPositionRate,2),'%')
+            end as QualifiedPositionRate
+        from
+            baobiao_alarmdailyreport
+        where 1=1
+            and date &gt;= CONCAT( #{beginTime},' 00:00:00')
+            and date &lt;= CONCAT( #{endTime},' 23:59:59')
+            and cid = #{deptId}
+    </sql>
+
+    <sql id="orderRYXSql">
+        <!-- 默认排序规则 -->
+        <if test="orderColumn == null or orderColumn == ''">
+            order by date desc
+        </if>
+        <if test="orderColumn != null and orderColumn != ''">
+            order by ${orderColumn}
+        </if>
+        <if test="orderColumn != null and orderColumn != '' and order != 0">
+            desc
+        </if>
+        <if test="orderColumn != null and orderColumn != '' and order == 0">
+            asc
+        </if>
+    </sql>
+
+    <sql id="queryRYXSql">
+
+    </sql>
+
+    <select timeout="600" id="selectGetRYXBJTJ" resultMap="RYXResultMap"
+            parameterType="org.springblade.platform.qiyeshouye.page.QiYeTongJiPage">
+        <if test="size == 0">
+            select * from (
+            <include refid="tableRYXSql"/>
+            )b
+            where 1=1
+            <include refid="queryRYXSql"/>
+            <include refid="orderRYXSql"/>
+            limit ${total}
+        </if>
+        <if test="current != 0">
+            select * from (
+            <include refid="tableRYXSql"/>
+            )b
+            where 1=1
+            <include refid="queryRYXSql"/>
+            <include refid="orderRYXSql"/>
+            limit ${offsetNo},${size}
+        </if>
+    </select>
+
+    <select timeout="90" id="selectGetRYXBJTJTotal"
+            parameterType="org.springblade.platform.qiyeshouye.page.QiYeTongJiPage"
+            resultType="int">
+        select COUNT(1) from (
+        <include refid="tableRYXSql"/>
+        )d where 1 = 1
+        <include refid="queryRYXSql"/>
+    </select>
+
+
+    <!-- 查询报警统计汇总列表 -->
+    <sql id="table24HoursOffLineSql">
+        select
+            c.id as deptId,
+            c.dept_name as deptName,
+            a.id,
+            a.cheliangpaizhao,
+            a.chepaiyanse,
+            a.shiyongxingzhi as operatType,
+            b.lastTime,
+            b.lastPosition,
+            b.offlinetime,
+            b.LatestPositionTime
+        from (
+            select id,dept_id,cheliangpaizhao,chepaiyanse,shiyongxingzhi from anbiao_vehicle
+            where is_deleted = 0
+        ) a
+        inner join (
+            select
+                VehicleId,
+                LatestPositionTime,
+                LatestPosition,
+                date,
+                case when LatestPositionTime &lt; '2020-01-01' then '-' else date_format(LatestPositionTime, '%Y-%m-%d %H:%i:%s') end as lastTime,
+                LatestPosition as lastPosition,
+                case when LatestPositionTime &lt; '2020-01-01' then '从未上线'
+                else CONCAT(CASE WHEN FLOOR(TIMESTAMPDIFF(SECOND, LatestPositionTime, date)/3600/24) = 0 THEN ''
+                ELSE concat(FLOOR(TIMESTAMPDIFF(SECOND, LatestPositionTime, date)/3600/24),'天') END,
+                CASE WHEN FLOOR(TIMESTAMPDIFF(SECOND, LatestPositionTime, date)/3600)%24 = 0 THEN ''
+                ELSE concat(FLOOR(TIMESTAMPDIFF(SECOND, LatestPositionTime, date)/3600)%24,'小时') END,
+                CASE WHEN FLOOR(TIMESTAMPDIFF(SECOND, LatestPositionTime, date)%3600/60) = 0 THEN '0分钟'
+                ELSE concat(FLOOR(TIMESTAMPDIFF(SECOND, LatestPositionTime, date)%3600/60),'分钟') END)end as offlinetime,
+                case when LatestPositionTime &lt; '2020-01-01' then null
+                else TIMESTAMPDIFF(SECOND, LatestPositionTime, date)end as offlinetimes
+            from
+                statisticdetail
+            where 1=1
+                and date &gt;= #{beginTime}
+                and LatestPositionTime &lt; #{endTime}
+            ) b on a.id = b.VehicleId
+        inner join (
+        select id,dept_name from blade_dept
+        where is_deleted = 0
+            and id = #{deptId}
+        GROUP BY
+            id,dept_name
+        ) c on a.dept_id= c.id
+        where 1=1
+    </sql>
+
+    <sql id="order24HoursOffLineSql">
+        <!-- 默认排序规则 -->
+        <if test="orderColumn == null or orderColumn == ''">
+            order by LatestPositionTime desc
+        </if>
+        <if test="orderColumn != null and orderColumn != ''">
+            order by ${orderColumn}
+        </if>
+        <if test="orderColumn != null and orderColumn != '' and order != 0">
+            desc
+        </if>
+        <if test="orderColumn != null and orderColumn != '' and order == 0">
+            asc
+        </if>
+    </sql>
+
+    <sql id="query24HoursOffLineSql">
+
+        <if test="cheliangpaizhao != null and cheliangpaizhao != ''">
+            and cheliangpaizhao = #{cheliangpaizhao}
+        </if>
+
+    </sql>
+
+    <select timeout="600" id="selectGet24HoursOffLineTJ" resultMap="OffLineResultMap"
+            parameterType="org.springblade.platform.qiyeshouye.page.QiYeTongJiPage">
+        <if test="size == 0">
+            select * from (
+            <include refid="table24HoursOffLineSql"/>
+            )b
+            where 1=1
+            <include refid="query24HoursOffLineSql"/>
+            <include refid="order24HoursOffLineSql"/>
+            limit ${total}
+        </if>
+        <if test="current != 0">
+            select * from (
+            <include refid="table24HoursOffLineSql"/>
+            )b
+            where 1=1
+            <include refid="query24HoursOffLineSql"/>
+            <include refid="order24HoursOffLineSql"/>
+            limit ${offsetNo},${size}
+        </if>
+    </select>
+
+    <select timeout="90" id="selectGet24HoursOffLineTJTotal"
+            parameterType="org.springblade.platform.qiyeshouye.page.QiYeTongJiPage"
+            resultType="int">
+        select COUNT(1) from (
+        <include refid="table24HoursOffLineSql"/>
+        )d where 1 = 1
+        <include refid="query24HoursOffLineSql"/>
+    </select>
+
+    <!-- 查询进出区域汇总列表 -->
+    <sql id="tableInOutAreaSql">
+        SELECT
+            mm.name as areaName,
+            CASE mm.areaType when 'rect' then '矩形' when 'circle' then '圆形' when 'polygon' then '多边形' ELSE '' end as
+            areaType,
+            v.cheliangpaizhao,
+            v.chepaiyanse,
+            v.shiyongxingzhi as operatType,
+            d.dept_name AS deptName,
+            a.inTime,
+            a.outTime,
+            a.inOutTimes,
+            a.IsAcross,
+            a.KeepTime,
+            case when (floor(a.KeepTime / 86400)) = 0 and (floor(a.KeepTime / 3600) % 24) = 0 and (floor(a.KeepTime / 60) % 60) = 0 then CONCAT((a.KeepTime % 60) , '秒')
+            when (floor(a.KeepTime / 86400)) = 0 and (floor(a.KeepTime / 3600) % 24) = 0 then CONCAT((floor(a.KeepTime / 60) % 60) , '分' , (a.KeepTime % 60) , '秒')
+            when (floor(a.KeepTime / 86400)) = 0 then CONCAT((floor(a.KeepTime / 3600) % 24) ,'时' , (floor(a.KeepTime / 60) % 60) , '分' , (a.KeepTime % 60) , '秒')
+            ELSE CONCAT((floor(a.KeepTime / 86400)), '天', (floor(a.KeepTime / 3600) % 24) ,'时' , (floor(a.KeepTime / 60) % 60) , '分' , (a.KeepTime % 60) , '秒')
+            end as keeptimeShow
+        FROM(
+            select
+                VehicleId,
+                Guid,
+                MIN(Time) as inTime,
+                Max(Time) as outTime,
+                MAX(AreaId) as AreaId,
+                count(VehicleId) as inOutTimes,
+                max(IsAcross) as IsAcross,
+                TIMESTAMPDIFF(SECOND, MIN(Time), Max(Time)) as KeepTime
+            from
+                baobiao_areaalarm
+            where 1=1
+                and left(Time,10) &gt;= #{beginTime}
+                and left(Time,10) &lt;= #{endTime}
+            group by
+                VehicleId,
+                Guid
+            ) AS a
+        JOIN anbiao_vehicle AS v ON v.id = a.VehicleId and v.is_deleted=0
+        JOIN (
+            SELECT
+                DISTINCT
+                xiaji.id,
+                xiaji.parent_id,
+                xiaji.dept_name,
+                xiaji.is_deleted
+            FROM
+                blade_dept shangji,
+                blade_dept xiaji
+            WHERE xiaji.tree_code LIKE CONCAT(shangji.tree_code,'%')
+                AND xiaji.is_deleted = 0 AND xiaji.extend_type='机构'
+                and shangji.id = #{deptId}
+            ) AS d ON d.id = v.dept_id
+            JOIN maparea as mm on mm.areaid=a.AreaId
+        where 1=1
+    </sql>
+
+    <sql id="orderInOutAreaSql">
+        <!-- 默认排序规则 -->
+        <if test="orderColumn == null or orderColumn == ''">
+            order by KeepTime desc
+        </if>
+        <if test="orderColumn != null and orderColumn != ''">
+            order by ${orderColumn}
+        </if>
+        <if test="orderColumn != null and orderColumn != '' and order != 0">
+            desc
+        </if>
+        <if test="orderColumn != null and orderColumn != '' and order == 0">
+            asc
+        </if>
+    </sql>
+
+    <sql id="queryInOutAreaSql">
+
+        <if test="cheliangpaizhao != null and cheliangpaizhao != ''">
+            and cheliangpaizhao like '%${cheliangpaizhao}%'
+        </if>
+
+        <if test="deptName != null and deptName != '' ">
+            and deptName like '%${deptName}%'
+        </if>
+
+        <if test="areaName != null and areaName != '' ">
+            and areaName like '%${areaName}%'
+        </if>
+
+        <if test="keepTime != null and keepTime != '' ">
+            and KeepTime/60 &gt;= ${keepTime}
+        </if>
+
+    </sql>
+
+    <select timeout="600" id="selectGetInOutAreaTJ" resultMap="InOutAreaResultMap"
+            parameterType="org.springblade.platform.qiyeshouye.page.QiYeInOutAreaPage">
+        <if test="size == 0">
+            select * from (
+            <include refid="tableInOutAreaSql"/>
+            )b
+            where 1=1
+            <include refid="queryInOutAreaSql"/>
+            <include refid="orderInOutAreaSql"/>
+            limit ${total}
+        </if>
+        <if test="current != 0">
+            select * from (
+            <include refid="tableInOutAreaSql"/>
+            )b
+            where 1=1
+            <include refid="queryInOutAreaSql"/>
+            <include refid="orderInOutAreaSql"/>
+            limit ${offsetNo},${size}
+        </if>
+    </select>
+
+    <select timeout="90" id="selectGetInOutAreaTJTotal"
+            parameterType="org.springblade.platform.qiyeshouye.page.QiYeInOutAreaPage"
+            resultType="int">
+        select COUNT(1) from (
+        <include refid="tableInOutAreaSql"/>
+        )d where 1 = 1
+        <include refid="queryInOutAreaSql"/>
+    </select>
+
+    <!-- 查询里程统计报表 -->
+    <sql id="tableMileageSql">
+        select
+            a.cid as deptId,
+            a.dept_name as deptName,
+            cheliangpaizhao,
+            chepaiyanse,
+            LEFT(Date,10) as statisticsDate,
+            ROUND(TravelMileage,2) as TravelMileage,
+            case
+                when (floor(TravelTimes / 86400)) = 0 and (floor(TravelTimes / 3600) % 24) = 0 and (floor(TravelTimes / 60) % 60) = 0 then CONCAT((TravelTimes % 60) , '秒')
+                when (floor(TravelTimes / 86400)) = 0 and (floor(TravelTimes / 3600) % 24) = 0 then CONCAT((floor(TravelTimes / 60) % 60) , '分' , (TravelTimes % 60) , '秒')
+                when (floor(TravelTimes / 86400)) = 0 then CONCAT((floor(TravelTimes / 3600) % 24) ,'时' , (floor(TravelTimes / 60) % 60) , '分' , (TravelTimes % 60) , '秒')
+                ELSE CONCAT((floor(TravelTimes / 86400)), '天', (floor(TravelTimes / 3600) % 24) ,'时' , (floor(TravelTimes / 60) % 60) , '分' , (TravelTimes % 60) , '秒')
+            end as TravelTimes,
+            ROUND(TravelMileage*1.0/TravelTimes*60*60,2) as averageSpeed,
+            0 StartMileage,
+            0 EndMileage,
+            TravelStartPosition,
+            TravelStopPosition
+        from
+            statisticcensus a
+        inner join  (
+            SELECT
+                DISTINCT
+                xiaji.id,
+                xiaji.parent_id,
+                xiaji.dept_name,
+                xiaji.is_deleted
+            FROM
+                blade_dept shangji,
+                blade_dept xiaji
+            WHERE xiaji.tree_code LIKE CONCAT(shangji.tree_code,'%')
+                AND xiaji.is_deleted = 0
+                AND xiaji.extend_type='机构'
+                AND shangji.id = #{deptId}
+            ) b on a.cid = b.id
+        where a.date &gt;= CONCAT(#{beginTime},' 00:00:00')
+            and a.date &lt; CONCAT(#{endTime},' 00:00:00')
+    </sql>
+
+    <sql id="orderMileageSql">
+        <!-- 默认排序规则 -->
+        <if test="orderColumn == null or orderColumn == ''">
+            order by statisticsDate desc
+        </if>
+        <if test="orderColumn != null and orderColumn != ''">
+            order by ${orderColumn}
+        </if>
+        <if test="orderColumn != null and orderColumn != '' and order != 0">
+            desc
+        </if>
+        <if test="orderColumn != null and orderColumn != '' and order == 0">
+            asc
+        </if>
+    </sql>
+
+    <sql id="queryMileageSql">
+
+        <if test="cheliangpaizhao != null and cheliangpaizhao != ''">
+            and cheliangpaizhao like '%${cheliangpaizhao}%'
+        </if>
+
+        <if test="deptName != null and deptName != '' ">
+            and deptName like '%${deptName}%'
+        </if>
+
+    </sql>
+
+    <select timeout="600" id="selectGetMileageTJ" resultMap="statementResultMap"
+            parameterType="org.springblade.platform.qiyeshouye.page.QiYeInOutAreaPage">
+        <if test="size == 0">
+            select * from (
+            <include refid="tableMileageSql"/>
+            )b
+            where 1=1
+            <include refid="queryMileageSql"/>
+            <include refid="orderMileageSql"/>
+            limit ${total}
+        </if>
+        <if test="current != 0">
+            select * from (
+            <include refid="tableMileageSql"/>
+            )b
+            where 1=1
+            <include refid="queryMileageSql"/>
+            <include refid="orderMileageSql"/>
+            limit ${offsetNo},${size}
+        </if>
+    </select>
+
+    <select timeout="90" id="selectGetMileageTotal"
+            parameterType="org.springblade.platform.qiyeshouye.page.QiYeInOutAreaPage"
+            resultType="int">
+        select COUNT(1) from (
+        <include refid="tableMileageSql"/>
+        )d where 1 = 1
+        <include refid="queryMileageSql"/>
+    </select>
+
+    <!-- 车辆轨迹完整率报表 -->
+    <sql id="tableTrajectoryIntegritySql">
+        select
+            a.cid as deptId,
+            a.dept_name as deptName,
+            cheliangpaizhao,
+            chepaiyanse,
+            LEFT(Date,10) as statisticsDate,
+            0 as lostCount,
+            PositionCount,
+            0 lostMileage,
+            ROUND(TravelMileage,2) as totalDistance,
+            CONCAT(ROUND(IntactPositionRate*100,2),'%') as IntactPositionRate
+        from
+            statisticcensus a
+        inner join  (
+            SELECT
+                DISTINCT
+                xiaji.id,
+                xiaji.parent_id,
+                xiaji.dept_name,
+                xiaji.is_deleted
+            FROM
+                blade_dept shangji,
+                blade_dept xiaji
+            WHERE xiaji.tree_code LIKE CONCAT(shangji.tree_code,'%')
+                AND xiaji.is_deleted = 0
+                AND xiaji.extend_type='机构'
+                AND shangji.id = #{deptId}
+            ) b on a.cid = b.id
+        where a.date &gt;= CONCAT(#{beginTime},' 00:00:00')
+            and a.date &lt; CONCAT(#{endTime},' 00:00:00')
+
+    </sql>
+
+    <sql id="orderTrajectoryIntegritySql">
+        <!-- 默认排序规则 -->
+        <if test="orderColumn == null or orderColumn == ''">
+            order by statisticsDate desc
+        </if>
+        <if test="orderColumn != null and orderColumn != ''">
+            order by ${orderColumn}
+        </if>
+        <if test="orderColumn != null and orderColumn != '' and order != 0">
+            desc
+        </if>
+        <if test="orderColumn != null and orderColumn != '' and order == 0">
+            asc
+        </if>
+    </sql>
+
+    <sql id="queryTrajectoryIntegritySql">
+
+        <if test="cheliangpaizhao != null and cheliangpaizhao != ''">
+            and cheliangpaizhao like '%${cheliangpaizhao}%'
+        </if>
+
+        <if test="deptName != null and deptName != '' ">
+            and deptName like '%${deptName}%'
+        </if>
+
+    </sql>
+
+    <select timeout="600" id="selectGetTrajectoryIntegrityTJ" resultMap="statementResultMap"
+            parameterType="org.springblade.platform.qiyeshouye.page.QiYeInOutAreaPage">
+        <if test="size == 0">
+            select * from (
+            <include refid="tableTrajectoryIntegritySql"/>
+            )b
+            where 1=1
+            <include refid="queryTrajectoryIntegritySql"/>
+            <include refid="orderTrajectoryIntegritySql"/>
+            limit ${total}
+        </if>
+        <if test="current != 0">
+            select * from (
+            <include refid="tableTrajectoryIntegritySql"/>
+            )b
+            where 1=1
+            <include refid="queryTrajectoryIntegritySql"/>
+            <include refid="orderTrajectoryIntegritySql"/>
+            limit ${offsetNo},${size}
+        </if>
+    </select>
+
+    <select timeout="90" id="selectGetTrajectoryIntegrityTotal"
+            parameterType="org.springblade.platform.qiyeshouye.page.QiYeInOutAreaPage"
+            resultType="int">
+        select COUNT(1) from (
+        <include refid="tableTrajectoryIntegritySql"/>
+        )d where 1 = 1
+        <include refid="queryTrajectoryIntegritySql"/>
+    </select>
+
+    <!-- 轨迹漂移报表 -->
+    <sql id="tableGuiJiYiChangSql">
+        SELECT
+            yw.vehid AS vehid,
+            yw.cid AS deptid,
+            yw.dept_name AS deptName,
+            yw.cheliangpaizhao AS cheliangpaizhao,
+            yw.chepaiyanse AS chepaiyanse,
+            yw.shiyongxingzhi AS shiyongxingzhi,
+            DATE_FORMAT(yw.drift_start,'%Y-%m-%d %H:%i:%s') AS startTime,
+            DATE_FORMAT(yw.drift_end,'%Y-%m-%d %H:%i:%s') AS endTime,
+            DATE_FORMAT(yw.drift_alarm_time,'%Y-%m-%d %H:%i:%s') AS alarmTime,
+            yw.drift_long AS driftLong,
+            yw.drift_start_location AS startLocation,
+            yw.drift_end_location AS endLocatin
+        FROM
+            xf_report_drift as yw
+        inner join  (
+            SELECT
+                DISTINCT
+                xiaji.id,
+                xiaji.parent_id,
+                xiaji.dept_name,
+                xiaji.is_deleted
+            FROM
+                blade_dept shangji,
+                blade_dept xiaji
+            WHERE xiaji.tree_code LIKE CONCAT(shangji.tree_code,'%')
+                AND xiaji.is_deleted = 0
+                AND xiaji.extend_type='机构'
+                AND shangji.id = #{deptId}
+            ) b on yw.cid = b.id
+        where 1=1
+            and yw.drift_alarm_time &gt;= CONCAT(#{beginTime},' 00:00:00')
+            and yw.drift_alarm_time &lt; CONCAT(#{endTime},' 00:00:00')
+    </sql>
+
+    <sql id="orderGuiJiYiChangSql">
+        <!-- 默认排序规则 -->
+        <if test="orderColumn == null or orderColumn == ''">
+            order by cheliangpaizhao desc
+        </if>
+        <if test="orderColumn != null and orderColumn != ''">
+            order by ${orderColumn}
+        </if>
+        <if test="orderColumn != null and orderColumn != '' and order != 0">
+            desc
+        </if>
+        <if test="orderColumn != null and orderColumn != '' and order == 0">
+            asc
+        </if>
+    </sql>
+
+    <sql id="queryGuiJiYiChangSql">
+
+        <if test="cheliangpaizhao != null and cheliangpaizhao != ''">
+            and cheliangpaizhao like '%${cheliangpaizhao}%'
+        </if>
+
+        <if test="deptName != null and deptName != '' ">
+            and deptName like '%${deptName}%'
+        </if>
+
+    </sql>
+
+    <select timeout="600" id="selectGuiJiYiChangTJ" resultMap="TrajectoryAnomaliesResultMap"
+            parameterType="org.springblade.platform.qiyeshouye.page.QiYeInOutAreaPage">
+        <if test="size == 0">
+            select * from (
+            <include refid="tableGuiJiYiChangSql"/>
+            )b
+            where 1=1
+            <include refid="queryGuiJiYiChangSql"/>
+            <include refid="orderGuiJiYiChangSql"/>
+            limit ${total}
+        </if>
+        <if test="current != 0">
+            select * from (
+            <include refid="tableGuiJiYiChangSql"/>
+            )b
+            where 1=1
+            <include refid="queryGuiJiYiChangSql"/>
+            <include refid="orderGuiJiYiChangSql"/>
+            limit ${offsetNo},${size}
+        </if>
+    </select>
+
+    <select timeout="90" id="selectGuiJiYiChangTotal"
+            parameterType="org.springblade.platform.qiyeshouye.page.QiYeInOutAreaPage"
+            resultType="int">
+        select COUNT(1) from (
+        <include refid="tableGuiJiYiChangSql"/>
+        )d where 1 = 1
+        <include refid="queryGuiJiYiChangSql"/>
+    </select>
+
+    <!-- 停车明细报表 -->
+    <sql id="tableTingCheMingXiSql">
+        SELECT
+            yw.vehid AS vehid,
+            yw.cid AS deptid,
+            yw.dept_name AS deptName,
+            yw.cheliangpaizhao AS cheliangpaizhao,
+            yw.chepaiyanse AS chepaiyanse,
+            yw.shiyongxingzhi AS shiyongxingzhi,
+            DATE_FORMAT(yw.drift_start,'%Y-%m-%d %H:%i:%s') AS startTime,
+            DATE_FORMAT(yw.drift_end,'%Y-%m-%d %H:%i:%s') AS endTime,
+            DATE_FORMAT(yw.drift_alarm_time,'%Y-%m-%d %H:%i:%s') AS alarmTime,
+            yw.drift_long AS driftLong,
+            yw.drift_start_location AS startLocation,
+            yw.drift_end_location AS endLocatin
+        FROM
+            xf_report_drift as yw
+        inner join  (
+            SELECT
+                DISTINCT
+                xiaji.id,
+                xiaji.parent_id,
+                xiaji.dept_name,
+                xiaji.is_deleted
+            FROM
+                blade_dept shangji,
+                blade_dept xiaji
+            WHERE xiaji.tree_code LIKE CONCAT(shangji.tree_code,'%')
+                AND xiaji.is_deleted = 0
+                AND xiaji.extend_type='机构'
+                AND shangji.id = #{deptId}
+            ) b on yw.cid = b.id
+        where 1=1
+            and yw.drift_start &gt;= CONCAT(#{beginTime},' 00:00:00')
+            and yw.drift_start &lt; CONCAT(#{endTime},' 00:00:00')
+    </sql>
+
+    <sql id="orderTingCheMingXiSql">
+        <!-- 默认排序规则 -->
+        <if test="orderColumn == null or orderColumn == ''">
+            order by cheliangpaizhao desc
+        </if>
+        <if test="orderColumn != null and orderColumn != ''">
+            order by ${orderColumn}
+        </if>
+        <if test="orderColumn != null and orderColumn != '' and order != 0">
+            desc
+        </if>
+        <if test="orderColumn != null and orderColumn != '' and order == 0">
+            asc
+        </if>
+    </sql>
+
+    <sql id="queryTingCheMingXiSql">
+
+        <if test="cheliangpaizhao != null and cheliangpaizhao != ''">
+            and cheliangpaizhao like '%${cheliangpaizhao}%'
+        </if>
+
+        <if test="deptName != null and deptName != '' ">
+            and deptName like '%${deptName}%'
+        </if>
+
+    </sql>
+
+    <select timeout="600" id="selectTingCheMingXiTJ" resultMap="StopVehicleResultMap"
+            parameterType="org.springblade.platform.qiyeshouye.page.QiYeInOutAreaPage">
+        <if test="size == 0">
+            select * from (
+            <include refid="tableTingCheMingXiSql"/>
+            )b
+            where 1=1
+            <include refid="queryTingCheMingXiSql"/>
+            <include refid="orderTingCheMingXiSql"/>
+            limit ${total}
+        </if>
+        <if test="current != 0">
+            select * from (
+            <include refid="tableTingCheMingXiSql"/>
+            )b
+            where 1=1
+            <include refid="queryTingCheMingXiSql"/>
+            <include refid="orderTingCheMingXiSql"/>
+            limit ${offsetNo},${size}
+        </if>
+    </select>
+
+    <select timeout="90" id="selectTingCheMingXiTotal"
+            parameterType="org.springblade.platform.qiyeshouye.page.QiYeInOutAreaPage"
+            resultType="int">
+        select COUNT(1) from (
+        <include refid="tableTingCheMingXiSql"/>
+        )d where 1 = 1
+        <include refid="queryTingCheMingXiSql"/>
+    </select>
+
+    <!-- 停车汇总报表 -->
+    <sql id="tableTingCheHuiZongSql">
+    select
+        vehId,deptId,deptName,cheliangpaizhao,chepaiyanse,shiyongxingzhi,stopTimes,stopAccOnTimes,
+        case
+            when (floor(stopLong / 86400)) = 0 and (floor(stopLong / 3600) % 24) = 0 and (floor(stopLong / 60) % 60) = 0 then CONCAT((stopLong % 60) , '秒')
+            when (floor(stopLong / 86400)) = 0 and (floor(stopLong / 3600) % 24) = 0 then CONCAT((floor(stopLong / 60) % 60) , '分' , (stopLong % 60) , '秒')
+            when (floor(stopLong / 86400)) = 0 then CONCAT((floor(stopLong / 3600) % 24) ,'时' , (floor(stopLong / 60) % 60) , '分' , (stopLong % 60) , '秒')
+            ELSE CONCAT((floor(stopLong / 86400)), '天', (floor(stopLong / 3600) % 24) ,'时' , (floor(stopLong / 60) % 60) , '分' , (stopLong % 60) , '秒')
+        end as stopLong,
+        case
+            when (floor(stopAccOnLong / 86400)) = 0 and (floor(stopAccOnLong / 3600) % 24) = 0 and (floor(stopAccOnLong / 60) % 60) = 0 then CONCAT((stopAccOnLong % 60) , '秒')
+            when (floor(stopAccOnLong / 86400)) = 0 and (floor(stopAccOnLong / 3600) % 24) = 0 then CONCAT((floor(stopAccOnLong / 60) % 60) , '分' , (stopAccOnLong % 60) , '秒')
+            when (floor(stopAccOnLong / 86400)) = 0 then CONCAT((floor(stopAccOnLong / 3600) % 24) ,'时' , (floor(stopAccOnLong / 60) % 60) , '分' , (stopAccOnLong % 60) , '秒')
+            ELSE CONCAT((floor(stopAccOnLong / 86400)), '天', (floor(stopAccOnLong / 3600) % 24) ,'时' , (floor(stopAccOnLong / 60) % 60) , '分' , (stopAccOnLong % 60) , '秒')
+        end as stopAccOnLong,
+        #{beginTime} as startTime,
+        #{endTime} as endTime
+    from(
+        SELECT
+            yw.vehid AS vehId,
+            max(yw.cid) AS deptId,
+            max(yw.dept_name) AS deptName,
+            max(yw.cheliangpaizhao) AS cheliangpaizhao,
+            max(yw.chepaiyanse) AS chepaiyanse,
+            max(yw.shiyongxingzhi) AS shiyongxingzhi,
+            count(case yw.stop_type WHEN 1 THEN yw.id ELSE 0 end) as stopTimes,
+            count(case yw.stop_type WHEN 2 THEN yw.id ELSE 0 end) as stopAccOnTimes,
+            sum(case yw.stop_type WHEN 1 THEN yw.stop_long ELSE 0 end) as stopLong,
+            sum(case yw.stop_type WHEN 2 THEN yw.stop_long ELSE 0 end) as stopAccOnLong
+        FROM
+            xf_report_stop as yw
+        inner join  (
+            SELECT
+                DISTINCT
+                xiaji.id,
+                xiaji.parent_id,
+                xiaji.dept_name,
+                xiaji.is_deleted
+            FROM
+                blade_dept shangji,
+                blade_dept xiaji
+            WHERE xiaji.tree_code LIKE CONCAT(shangji.tree_code,'%')
+                AND xiaji.is_deleted = 0
+                AND xiaji.extend_type='机构'
+                AND shangji.id = #{deptId}
+            ) b on yw.cid = b.id
+        where 1=1
+            and yw.stop_start &gt;= CONCAT(#{beginTime},' 00:00:00')
+            and yw.stop_start &lt; CONCAT(#{endTime},' 00:00:00')
+            and yw.stop_long &gt; 0
+        group by
+            yw.vehid
+        )a
+    </sql>
+
+    <sql id="orderTingCheHuiZongSql">
+        <!-- 默认排序规则 -->
+        <if test="orderColumn == null or orderColumn == ''">
+            order by cheliangpaizhao desc
+        </if>
+        <if test="orderColumn != null and orderColumn != ''">
+            order by ${orderColumn}
+        </if>
+        <if test="orderColumn != null and orderColumn != '' and order != 0">
+            desc
+        </if>
+        <if test="orderColumn != null and orderColumn != '' and order == 0">
+            asc
+        </if>
+    </sql>
+
+    <sql id="queryTingCheHuiZongSql">
+
+        <if test="cheliangpaizhao != null and cheliangpaizhao != ''">
+            and cheliangpaizhao like '%${cheliangpaizhao}%'
+        </if>
+
+        <if test="deptName != null and deptName != '' ">
+            and deptName like '%${deptName}%'
+        </if>
+
+    </sql>
+
+    <select timeout="600" id="selectTingCheHuiZongTJ" resultMap="StopVehicleResultMap"
+            parameterType="org.springblade.platform.qiyeshouye.page.QiYeInOutAreaPage">
+        <if test="size == 0">
+            select * from (
+            <include refid="tableTingCheHuiZongSql"/>
+            )b
+            where 1=1
+            <include refid="queryTingCheHuiZongSql"/>
+            <include refid="orderTingCheHuiZongSql"/>
+            limit ${total}
+        </if>
+        <if test="current != 0">
+            select * from (
+            <include refid="tableTingCheHuiZongSql"/>
+            )b
+            where 1=1
+            <include refid="queryTingCheHuiZongSql"/>
+            <include refid="orderTingCheMingXiSql"/>
+            limit ${offsetNo},${size}
+        </if>
+    </select>
+
+    <select timeout="90" id="selectTingCheHuiZongTotal"
+            parameterType="org.springblade.platform.qiyeshouye.page.QiYeInOutAreaPage"
+            resultType="int">
+        select COUNT(1) from (
+        <include refid="tableTingCheHuiZongSql"/>
+        )d where 1 = 1
+        <include refid="queryTingCheHuiZongSql"/>
+    </select>
+
+    <!-- 查询企业在线车辆详情列表 -->
+    <sql id="tabletpvehdataSql">
+        select * from tpvehdata
+        where 1=1
+            and DeptID = #{deptId}
+            and Systime &gt;= CONCAT( #{beginTime},' 00:00:00')
+            and Systime &lt;= CONCAT( #{endTime},' 23:59:59')
+    </sql>
+
+    <sql id="ordertpvehdataSql">
+        <!-- 默认排序规则 -->
+        <if test="orderColumn == null or orderColumn == ''">
+            order by Systime desc
+        </if>
+        <if test="orderColumn != null and orderColumn != ''">
+            order by ${orderColumn}
+        </if>
+        <if test="orderColumn != null and orderColumn != '' and order != 0">
+            desc
+        </if>
+        <if test="orderColumn != null and orderColumn != '' and order == 0">
+            asc
+        </if>
+    </sql>
+
+    <sql id="querytpvehdataSql">
+
+        <if test="cheliangpaizhao != null and cheliangpaizhao != ''">
+            and VeNumber like '%${cheliangpaizhao}%'
+        </if>
+
+        <if test=" Alarm == '1' ">
+            and Alarm = 1
+        </if>
+
+        <if test=" Alarm != '1' ">
+            and Alarm != 1
+        </if>
+
+        <if test=" Locate == '1' ">
+            and Locate = 1
+        </if>
+
+        <if test=" Locate != '1' ">
+            and Locate != 1
+        </if>
+
+    </sql>
+
+    <select timeout="600" id="selecttpvehdataTJ" resultMap="TpvehdataResultMap"
+            parameterType="org.springblade.platform.qiyeshouye.page.QiYeTpvehdataPage">
+        <if test="size == 0">
+            select * from (
+            <include refid="tabletpvehdataSql"/>
+            )b
+            where 1=1
+            <include refid="querytpvehdataSql"/>
+            <include refid="ordertpvehdataSql"/>
+            limit ${total}
+        </if>
+        <if test="current != 0">
+            select * from (
+            <include refid="tabletpvehdataSql"/>
+            )b
+            where 1=1
+            <include refid="querytpvehdataSql"/>
+            <include refid="ordertpvehdataSql"/>
+            limit ${offsetNo},${size}
+        </if>
+    </select>
+
+    <select timeout="90" id="selectGettpvehdataTJTotal"
+            parameterType="org.springblade.platform.qiyeshouye.page.QiYeTpvehdataPage"
+            resultType="int">
+        select COUNT(1) from (
+        <include refid="tabletpvehdataSql"/>
+        )d where 1 = 1
+        <include refid="querytpvehdataSql"/>
+    </select>
+
+</mapper>

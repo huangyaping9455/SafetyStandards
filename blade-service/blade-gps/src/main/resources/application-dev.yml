@@ -1,0 +1,38 @@
+#服务器端口
+
+server:
+  port: 9107
+spring:
+  datasource:
+    gps3:
+      driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+#      url: ${blade.datasource.gps3.url}
+#      username: ${blade.datasource.gps3.username}
+#      password: ${blade.datasource.gps3.password}
+
+#      url: jdbc:sqlserver://58.144.142.198:24343;databaseName=safesystem
+#      username: mxsa_gps
+#      password: Mxcx!gps_pwd_yw
+
+      url: jdbc:sqlserver://192.168.43.157:1433;databaseName=health
+      username: sa
+      password: Abc123
+
+    gps2:
+      driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+#      url: ${blade.datasource.gps2.url}
+#      username: ${blade.datasource.gps2.username}
+#      password: ${blade.datasource.gps2.password}
+
+#      url: jdbc:sqlserver://58.144.142.198:24343;databaseName=safesystem
+#      username: mxsa_gps
+#      password: Mxcx!gps_pwd_yw
+
+      url: jdbc:sqlserver://192.168.43.157:1433;databaseName=health
+      username: sa
+      password: Abc123
+gpsserver:
+  pointurlPrefix: ${gpsserver.dev.pointurl}
+  imgurlPrefix: ${gpsserver.dev.imgurl}
+  spreadurlPrefix: ${gpsserver.dev.spreadurl}
+

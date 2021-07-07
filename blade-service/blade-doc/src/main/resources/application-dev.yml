@@ -1,0 +1,38 @@
+#服务器端口
+server:
+  port: 9103
+
+#数据源配置
+spring:
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+  datasource:
+    #    url: ${blade.datasource.dev.url}
+    #    username: ${blade.datasource.dev.username}
+    #    password: ${blade.datasource.dev.password}
+
+    #    url: jdbc:mysql://36.133.42.142:3366/blade?useSSL=false&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&transformedBitIsBoolean=true&tinyInt1isBit=false&allowMultiQueries=true&serverTimezone=GMT%2B8
+    #    username: root
+    #    password: mxcx123
+
+    #    #亚美
+    #    url: jdbc:mysql://47.108.138.221:3366/blade?useSSL=false&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&transformedBitIsBoolean=true&tinyInt1isBit=false&allowMultiQueries=true&serverTimezone=GMT%2B8
+    #    username: root
+    #    password: admin@sh
+
+    #   青岛
+    url: jdbc:mysql://150.138.133.178:3366/blade?useSSL=false&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&transformedBitIsBoolean=true&tinyInt1isBit=false&allowMultiQueries=true&serverTimezone=GMT%2B8
+    username: root
+    password: qd123!@#
+
+#文件的物理路径前缀与url前缀
+fileserver:
+  #  path-prefix: ${fileserver.dev.path}
+  #  url-prefix: ${fileserver.dev.url}
+  #  path-prefix: http://36.133.42.216:8204/D:/BS/static/
+  #  url-prefix: http://36.133.42.216:8204/
+  path-prefix: D:\BS\static\
+  url-prefix: http://150.138.133.178:8204/
+

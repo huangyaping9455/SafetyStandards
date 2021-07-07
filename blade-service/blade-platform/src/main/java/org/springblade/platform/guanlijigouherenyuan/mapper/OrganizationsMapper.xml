@@ -1,0 +1,553 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.springblade.platform.guanlijigouherenyuan.mapper.OrganizationsMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="organizationResultMap" type="org.springblade.platform.guanlijigouherenyuan.entity.Organizations">
+        <id column="id" property="id"/>
+        <result column="dept_id" property="deptId"/>
+        <result column="dept_name" property="deptName"/>
+        <result column="jigoufuzeren" property="jigoufuzeren"/>
+        <result column="jigoubianma" property="jigoubianma"/>
+        <result column="jigouleixing" property="jigouleixing"/>
+        <result column="jigouzizhi" property="jigouzizhi"/>
+        <result column="farendaibiao" property="farendaibiao"/>
+        <result column="lianxidianhua" property="lianxidianhua"/>
+        <result column="zhuceziben" property="zhuceziben"/>
+        <result column="touzizonge" property="touzizonge"/>
+        <result column="cheliangguimo" property="cheliangguimo"/>
+        <result column="congyerenshuliang" property="congyerenshuliang"/>
+        <result column="chenglishijian" property="chenglishijian"/>
+        <result column="tingchechangmianji" property="tingchechangmianji"/>
+        <result column="tingchechangweizhi" property="tingchechangweizhi"/>
+        <result column="jiashiyuanshuliang" property="jiashiyuanshuliang"/>
+        <result column="yayunyuanshuliang" property="yayunyuanshuliang"/>
+        <result column="zhuangxieyuanshuliang" property="zhuangxieyuanshuliang"/>
+        <result column="xuhao" property="xuhao"/>
+        <result column="xingzhengqudaima" property="xingzhengqudaima"/>
+        <result column="jingyingxukezhengbianma" property="jingyingxukezhengbianma"/>
+        <result column="fujian" property="fujian"/>
+        <result column="anquanguanlitu" property="anquanguanlitu"/>
+        <result column="zuzhijigoutu" property="zuzhijigoutu"/>
+        <result column="jingyingfanwei" property="jingyingfanwei"/>
+        <result column="jingyingdizhi" property="jingyingdizhi"/>
+        <result column="xiangxidizhi" property="xiangxidizhi"/>
+        <result column="jigoumiaoshu" property="jigoumiaoshu"/>
+        <result column="login_photo" property="loginPhoto"/>
+        <result column="home_photo" property="homePhoto"/>
+        <result column="profile_photo" property="profilePhoto"/>
+        <result column="logo_photo" property="logoPhoto"/>
+        <result column="logo_rizhi" property="logoRizhi"/>
+
+
+
+        <result column="login_photo_app" property="loginPhotoApp"/>
+        <result column="home_photo_app" property="homePhotoApp"/>
+        <result column="profile_photo_app" property="profilePhotoApp"/>
+        <result column="is_deleted" property="isdelete"/>
+        <result column="caozuoren" property="caozuoren"/>
+        <result column="caozuorenid" property="caozuorenid"/>
+        <result column="caozuoshijian" property="caozuoshijian"/>
+        <result column="yunyingleixing" property="yunyingleixing"/>
+        <result column="province" property="province"/>
+        <result column="city" property="city"/>
+        <result column="country" property="country"/>
+    </resultMap>
+
+
+    <select id="selectAll" resultMap="organizationResultMap">
+        select * from anbiao_organization where isdelete = 0
+    </select>
+
+
+    <delete id="delByDeptId" parameterType="java.lang.String">
+        update anbiao_organization SET isdelete = 1 where dept_id = #{deptId}
+    </delete>
+
+    <select id="selectByDeptId" resultMap="organizationResultMap" >
+        select * from anbiao_organization where dept_id=#{deptId} and isdelete = 0 limit 1
+    </select>
+
+    <update id="updateDel" parameterType="java.lang.String">
+        UPDATE anbiao_organization SET isdelete = 1 where id = #{id}
+    </update>
+    <sql id="getByDeptId">
+        SELECT DISTINCT
+            xiaji.id,
+            xiaji.parent_id,
+            xiaji.dept_name,
+            xiaji.is_deleted
+        FROM
+            blade_dept shangji,
+            blade_dept xiaji
+            WHERE xiaji.tree_code LIKE CONCAT(shangji.tree_code,'%')
+            AND xiaji.is_deleted = 0 AND xiaji.extend_type='机构'
+            <if test="deptId != null">
+                and shangji.id=#{deptId}
+            </if>
+
+    </sql>
+
+
+    <sql id="tableSql">
+        SELECT
+        a.*, b.dept_name as deptName
+        FROM
+        anbiao_organization a
+        INNER JOIN
+        (
+        <include refid="org.springblade.platform.guanlijigouherenyuan.mapper.OrganizationsMapper.getByDeptId"/>
+        )
+        b ON a.dept_id = b.id and a.isdelete = 0 and  b.is_deleted = 0
+    </sql>
+
+    <sql id="querySql">
+        <if test="deptName !=null and deptName != ''">
+            AND deptName LIKE '%${deptName}%'
+        </if>
+    </sql>
+    <sql id="orderSql">
+        <!-- 默认排序规则 -->
+        <if test="orderColumn == null or orderColumn == ''">
+            order by caozuoshijian
+        </if>
+        <if test="orderColumn != null and orderColumn != ''">
+            order by ${orderColumn}
+        </if>
+        <if test="orderColumn != null and orderColumn != '' and order != 0">
+            desc
+        </if>
+    </sql>
+
+    <select id="selectPageList" parameterType="org.springblade.platform.guanlijigouherenyuan.page.OrganizationsPage" resultType="org.springblade.platform.guanlijigouherenyuan.vo.OrganizationsVO">
+        <if test="size == 0" >
+            select * from (
+            <include refid="tableSql" />
+            )b
+            where 1=1
+            <include refid="querySql" />
+            <include refid="orderSql" />
+            limit ${total}
+        </if>
+        <if test="current != 0" >
+            select * from (
+            <include refid="tableSql" />
+            )b
+            where 1=1
+            <include refid="querySql" />
+            <include refid="orderSql" />
+            limit ${offsetNo},${size}
+        </if>
+    </select>
+
+    <select id="selectTotal" parameterType="org.springblade.platform.guanlijigouherenyuan.page.OrganizationsPage" resultType="int">
+        select COUNT(1) from (
+        <include refid="tableSql" />
+        )d
+        where 1 = 1
+        <include refid="querySql" />
+    </select>
+
+    <select id="selectByIds" parameterType="java.lang.String" resultType="org.springblade.platform.guanlijigouherenyuan.vo.OrganizationsVO">
+        SELECT
+        a.*,b.dept_name
+        FROM
+        anbiao_organization a
+        inner join  blade_dept b
+        on a.dept_id = b.id
+        WHERE 1=1 and ifnull(a.isdelete ,0) = 0 and a.id=#{id}
+    </select>
+
+    <select id="selectZFRenyuan" resultType="org.springblade.platform.zhengfu.entity.Organization">
+        select
+            renyuanid as renYuanId,
+            account,
+            gangweiid as gangWeiId,
+            tree_code as treeCode,
+            parent_id as parentId
+        from(
+            select
+                a.id as renyuanid,a.account,b.post_id
+            from
+                blade_user a,blade_post b
+            where a.id = b.user_id
+                and b.Isdefault = 1
+                and a.is_deleted = 0
+            )a
+            inner join(
+                select
+                    id as gangweiid,tree_code,parent_id
+                from
+                    blade_dept
+                where tree_code like '000001005446%'
+                    and extend_type = '岗位'
+            )b on a.post_id = b.gangweiid
+        where 1=1
+            and a.renyuanid = #{Id}
+    </select>
+
+    <insert id="insertSelective" parameterType="org.springblade.platform.guanlijigouherenyuan.entity.Organizations" >
+        insert into anbiao_zhengfu_qiye
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="qiyeid != null">
+                qiyeid,
+            </if>
+
+            <if test="qiyemingcheng != null">
+                qiyemingcheng,
+            </if>
+
+            <if test="jigouleixing != null">
+                jigouleixing,
+            </if>
+
+            <if test="province != null">
+                province,
+            </if>
+
+            <if test="city != null">
+                city,
+            </if>
+
+            <if test="country != null">
+                country,
+            </if>
+
+            <if test="yunguanmingcheng != null">
+                yunguanmingcheng,
+            </if>
+
+            <if test="yunguanid != null">
+                yunguanid,
+            </if>
+
+            <if test="areaname != null">
+                areaname
+            </if>
+
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="id != null">
+                #{id},
+            </if>
+
+            <if test="qiyeid != null">
+                #{qiyeid},
+            </if>
+
+            <if test="qiyemingcheng != null">
+                #{qiyemingcheng},
+            </if>
+
+            <if test="jigouleixing != null">
+                #{jigouleixing},
+            </if>
+
+            <if test="province != null">
+                #{province},
+            </if>
+
+            <if test="city != null">
+                #{city},
+            </if>
+
+            <if test="country != null">
+                #{country},
+            </if>
+
+            <if test="yunguanmingcheng != null">
+                #{yunguanmingcheng},
+            </if>
+
+            <if test="yunguanid != null">
+                #{yunguanid},
+            </if>
+
+            <if test="areaname != null">
+                #{areaname}
+            </if>
+
+        </trim>
+    </insert>
+
+    <insert id="insertOrganizationsSelective" parameterType="org.springblade.platform.guanlijigouherenyuan.entity.Organizations" >
+        insert into anbiao_organization
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+                id,
+            <if test="deptId != null">
+                dept_id,
+            </if>
+            <if test="deptName != null">
+                dept_name,
+            </if>
+            <if test="jigoufuzeren != null">
+                jigoufuzeren,
+            </if>
+            <if test="jigouleixing != null">
+                jigouleixing,
+            </if>
+            <if test="jigouzizhi != null">
+                jigouzizhi,
+            </if>
+            <if test="farendaibiao != null">
+                farendaibiao,
+            </if>
+            <if test="lianxidianhua != null">
+                lianxidianhua,
+            </if>
+            <if test="zhuceziben != null">
+                zhuceziben,
+            </if>
+            <if test="touzizonge != null">
+                touzizonge,
+            </if>
+            <if test="cheliangguimo != null">
+                cheliangguimo,
+            </if>
+            <if test="congyerenshuliang != null">
+                congyerenshuliang,
+            </if>
+            <if test="chenglishijian != null">
+                chenglishijian,
+            </if>
+            <if test="tingchechangmianji != null">
+                tingchechangmianji,
+            </if>
+            <if test="tingchechangweizhi != null">
+                tingchechangweizhi,
+            </if>
+            <if test="jiashiyuanshuliang != null">
+                jiashiyuanshuliang,
+            </if>
+            <if test="yayunyuanshuliang != null">
+                yayunyuanshuliang,
+            </if>
+            <if test="zhuangxieyuanshuliang != null">
+                zhuangxieyuanshuliang,
+            </if>
+            <if test="xuhao != null">
+                xuhao,
+            </if>
+            <if test="xingzhengqudaima != null">
+                xingzhengqudaima,
+            </if>
+            <if test="jingyingxukezhengbianma != null">
+                jingyingxukezhengbianma,
+            </if>
+            <if test="fujian != null">
+                fujian,
+            </if>
+            <if test="anquanguanlitu != null">
+                anquanguanlitu,
+            </if>
+            <if test="zuzhijigoutu != null">
+                zuzhijigoutu,
+            </if>
+            <if test="jingyingfanwei != null">
+                jingyingfanwei,
+            </if>
+            <if test="jingyingdizhi != null">
+                jingyingdizhi,
+            </if>
+            <if test="xiangxidizhi != null">
+                xiangxidizhi,
+            </if>
+            <if test="jigoumiaoshu != null">
+                jigoumiaoshu,
+            </if>
+            <if test="loginPhoto != null">
+                login_photo,
+            </if>
+            <if test="homePhoto != null">
+                home_photo,
+            </if>
+            <if test="profilePhoto != null">
+                profile_photo,
+            </if>
+            <if test="logoPhoto != null">
+                logo_photo,
+            </if>
+            <if test="logoRizhi != null">
+                logo_rizhi,
+            </if>
+            <if test="caozuoren != null">
+                caozuoren,
+            </if>
+            <if test="caozuorenid != null">
+                caozuorenid,
+            </if>
+            <if test="caozuoshijian != null">
+                caozuoshijian,
+            </if>
+            <if test="createtime != null">
+                createtime,
+            </if>
+            <if test="loginPhotoApp != null">
+                login_photo_app,
+            </if>
+            <if test="homePhotoApp != null">
+                home_photo_app,
+            </if>
+            <if test="profilePhotoApp != null">
+                profile_photo_app,
+            </if>
+            <if test="isdelete != null">
+                isdelete,
+            </if>
+            <if test="yunyingleixing != null">
+                yunyingleixing,
+            </if>
+            <if test="province != null">
+                province,
+            </if>
+            <if test="city != null">
+                city,
+            </if>
+            <if test="country != null">
+                country,
+            </if>
+            <if test="area != null">
+                area
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+                uuid(),
+            <if test="deptId != null">
+                #{deptId},
+            </if>
+            <if test="deptName != null">
+                #{deptName},
+            </if>
+            <if test="jigoufuzeren != null">
+                #{jigoufuzeren},
+            </if>
+            <if test="jigouleixing != null">
+                #{jigouleixing},
+            </if>
+            <if test="jigouzizhi != null">
+                #{jigouzizhi},
+            </if>
+            <if test="farendaibiao != null">
+                #{farendaibiao},
+            </if>
+            <if test="lianxidianhua != null">
+                #{lianxidianhua},
+            </if>
+            <if test="zhuceziben != null">
+                #{zhuceziben},
+            </if>
+            <if test="touzizonge != null">
+                #{touzizonge},
+            </if>
+            <if test="cheliangguimo != null">
+                #{cheliangguimo},
+            </if>
+            <if test="congyerenshuliang != null">
+                #{congyerenshuliang},
+            </if>
+            <if test="chenglishijian != null">
+                #{chenglishijian},
+            </if>
+            <if test="tingchechangmianji != null">
+                #{tingchechangmianji},
+            </if>
+            <if test="tingchechangweizhi != null">
+                #{tingchechangweizhi},
+            </if>
+            <if test="jiashiyuanshuliang != null">
+                #{jiashiyuanshuliang},
+            </if>
+            <if test="yayunyuanshuliang != null">
+                #{yayunyuanshuliang},
+            </if>
+            <if test="zhuangxieyuanshuliang != null">
+                #{zhuangxieyuanshuliang},
+            </if>
+            <if test="xuhao != null">
+                #{xuhao},
+            </if>
+            <if test="xingzhengqudaima != null">
+                #{xingzhengqudaima},
+            </if>
+            <if test="jingyingxukezhengbianma != null">
+                #{jingyingxukezhengbianma},
+            </if>
+            <if test="fujian != null">
+                #{fujian},
+            </if>
+            <if test="anquanguanlitu != null">
+                #{anquanguanlitu},
+            </if>
+            <if test="zuzhijigoutu != null">
+                #{zuzhijigoutu},
+            </if>
+            <if test="jingyingfanwei != null">
+                #{jingyingfanwei},
+            </if>
+            <if test="jingyingdizhi != null">
+                #{jingyingdizhi},
+            </if>
+            <if test="xiangxidizhi != null">
+                #{xiangxidizhi},
+            </if>
+            <if test="jigoumiaoshu != null">
+                #{jigoumiaoshu},
+            </if>
+            <if test="loginPhoto != null">
+                #{loginPhoto},
+            </if>
+            <if test="homePhoto != null">
+                #{homePhoto},
+            </if>
+            <if test="profilePhoto != null">
+                #{profilePhoto},
+            </if>
+            <if test="logoPhoto != null">
+                #{logoPhoto},
+            </if>
+            <if test="logoRizhi != null">
+                #{logoRizhi},
+            </if>
+            <if test="caozuoren != null">
+                #{caozuoren},
+            </if>
+            <if test="caozuorenid != null">
+                #{caozuorenid},
+            </if>
+            <if test="caozuoshijian != null">
+                #{caozuoshijian},
+            </if>
+            <if test="createtime != null">
+                #{createtime},
+            </if>
+            <if test="loginPhotoApp != null">
+                #{loginPhotoApp},
+            </if>
+            <if test="homePhotoApp != null">
+                #{homePhotoApp},
+            </if>
+            <if test="profilePhotoApp != null">
+                #{profilePhotoApp},
+            </if>
+            <if test="isdelete != null">
+                #{isdelete},
+            </if>
+            <if test="yunyingleixing != null">
+                #{yunyingleixing},
+            </if>
+            <if test="province != null">
+                #{province},
+            </if>
+            <if test="city != null">
+                #{city},
+            </if>
+            <if test="country != null">
+                #{country},
+            </if>
+            <if test="area != null">
+                #{area}
+            </if>
+        </trim>
+    </insert>
+
+</mapper>
